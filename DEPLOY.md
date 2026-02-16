@@ -135,13 +135,34 @@ php artisan view:cache
 
 | Переменная      | Описание |
 |-----------------|----------|
-| `APP_KEY`       | Ключ приложения: `php artisan key:generate --show` (без `base64:`). В Render укажите полное значение, например `base64:xxx...`. |
+| `APP_KEY`       | Полная строка из `php artisan key:generate --show` (включая префикс `base64:`), без пробелов и переносов. |
+| `APP_CIPHER`    | `aes-256-cbc` (в нижнем регистре; иначе возможна ошибка «Unsupported cipher or incorrect key length»). |
 | `APP_ENV`       | `production` |
 | `APP_DEBUG`     | `false` |
 | `APP_URL`       | URL вашего сервиса, например `https://ваш-сервис.onrender.com` |
 | `LOG_CHANNEL`   | `stderr` (уже задано в Dockerfile, можно переопределить) |
 
-**База данных:** при использовании **Render PostgreSQL** в настройках сервиса привяжите базу (Add PostgreSQL); Render создаст переменную **`DATABASE_URL`**. В Environment добавьте `DB_CONNECTION=pgsql`, чтобы Laravel использовал Postgres (при наличии `DATABASE_URL` конфиг подхватит хост, порт, имя БД и учётные данные из неё).
+**База данных (обязательно для работы с БД):** Без настроенной БД приложение при старте попытается подключиться к MySQL по умолчанию и получит «Connection refused».
+
+- В Render: **Dashboard → ваш Web Service → Environment → Add Environment Group** или отдельные переменные.
+- Создайте базу: **Dashboard → New → PostgreSQL**. Затем в карточке сервиса нажмите **Connect** и привяжите эту БД к вашему Web Service (или скопируйте **Internal Database URL**).
+- Render подставит переменную **`DATABASE_URL`** (Internal Database URL). В Environment вручную добавьте:
+  - **`DB_CONNECTION=pgsql`** — иначе Laravel будет использовать `mysql` и значения по умолчанию (`forge` / 127.0.0.1), из‑за чего и возникает «Connection refused».
+
+После этого при следующем деплое миграции выполнятся в Postgres.
+
+**Если появляется «password authentication failed for user»:** В `DATABASE_URL` пароль передаётся внутри URL; спецсимволы в пароле (`@`, `#`, `:`, `/`, `%`) могут ломать разбор. Лучше **не задавать `DATABASE_URL`**, а прописать параметры БД отдельными переменными. В Render: ваша **PostgreSQL** → **Connect** → блок **Internal connection** (для Web Service в том же аккаунте — Internal). Скопируйте оттуда хост, порт, базу, пользователя и пароль и в Environment Web Service задайте:
+
+- `DB_CONNECTION=pgsql`
+- `DB_HOST` — хост (например `dpg-d69astvgi27c73cd0fsg-a`)
+- `DB_PORT` — `5432`
+- `DB_DATABASE` — имя БД (например `krlmnlk`)
+- `DB_USERNAME` — пользователь (например `krlmnlk_user`)
+- `DB_PASSWORD` — пароль **один в один** из панели Render (если при создании БД пароль показывали один раз — сбросьте его в Render и задайте новый, затем укажите его в `DB_PASSWORD`)
+
+Переменную **`DATABASE_URL`** в этом случае удалите или не задавайте, чтобы Laravel использовал именно `DB_*`. Сохраните Environment и сделайте **Redeploy**.
+
+**Если появляется «Unsupported cipher or incorrect key length» (500 при открытии сайта):** В Environment задайте **`APP_CIPHER`** = `aes-256-cbc` (именно в нижнем регистре). Значение **`APP_KEY`** должно быть полной строкой из `php artisan key:generate --show` (с префиксом `base64:`), без лишних пробелов; при копировании в Render не обрезайте значение. После изменений сделайте **Redeploy**.
 
 Если подключаете внешнюю БД вручную:
 
@@ -156,7 +177,7 @@ php artisan view:cache
 - `php artisan config:cache`
 - `php artisan route:cache`
 - `php artisan view:cache`
-- `php artisan migrate --force`
+- `php artisan migrate --force` (при ошибке подключения к БД контейнер всё равно запустится; после настройки БД сделайте повторный деплой).
 - затем запуск nginx и php-fpm.
 
 Фронтенд (Vite) уже собран в образ на этапе `docker build`, отдельно собирать его на Render не нужно.
@@ -165,7 +186,7 @@ php artisan view:cache
 
 - [ ] Репозиторий подключён, выбран тип сервиса **Docker**
 - [ ] В Environment заданы `APP_KEY`, `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL`
-- [ ] При использовании Render PostgreSQL добавлена переменная `DATABASE_URL` (или вручную заданы `DB_*`)
+- [ ] Добавлена БД (Render PostgreSQL или своя) и в Environment заданы `DB_CONNECTION=pgsql` и при необходимости `DATABASE_URL`
 - [ ] После первого деплоя сайт открывается по ссылке вида `https://xxx.onrender.com`
 
 ---

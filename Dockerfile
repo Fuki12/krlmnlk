@@ -38,5 +38,5 @@ ENV APP_DEBUG=0
 ENV LOG_CHANNEL=stderr
 ENV COMPOSER_ALLOW_SUPERUSER=1
 
-# При старте: composer, кэш Laravel, миграции, затем штатный запуск nginx/php-fpm
-CMD ["/bin/sh", "-c", "cd /var/www/html && composer install --no-dev --optimize-autoloader && php artisan config:cache && php artisan route:cache && php artisan view:cache && php artisan migrate --force && exec /start.sh"]
+# При старте: composer, кэш Laravel, миграции (при ошибке БД — всё равно запускаем сервер), затем nginx/php-fpm
+CMD ["/bin/sh", "-c", "cd /var/www/html && composer install --no-dev --optimize-autoloader && php artisan config:cache && php artisan route:cache && php artisan view:cache && (php artisan migrate --force || true) && exec /start.sh"]
