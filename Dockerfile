@@ -1,4 +1,12 @@
 # ============================================================
+# Stage 0: vendor (нужен для Ziggy при сборке Vite)
+# ============================================================
+FROM composer:2 AS vendor
+WORKDIR /app
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --optimize-autoloader --no-scripts
+
+# ============================================================
 # Stage 1: сборка фронтенда (Vite + Vue)
 # ============================================================
 FROM node:20-alpine AS frontend
@@ -7,6 +15,7 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci
 COPY . .
+COPY --from=vendor /app/vendor /app/vendor
 RUN cp .env.example .env 2>/dev/null || true
 RUN npm run build
 
