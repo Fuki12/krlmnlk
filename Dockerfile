@@ -1,7 +1,9 @@
 # ============================================================
-# Stage 0: vendor (нужен для Ziggy при сборке Vite)
+# Stage 0: vendor (нужен для Ziggy при сборке Vite), PHP 8.3 для совместимости с lock
 # ============================================================
-FROM composer:2 AS vendor
+FROM php:8.3-cli-alpine AS vendor
+RUN apk add --no-cache git unzip && \
+    curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 WORKDIR /app
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --optimize-autoloader --no-scripts
